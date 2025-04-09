@@ -1,0 +1,5 @@
+type: script
+scripts:
+  - unprotectsudo.sh
+  - repo-setup-lts.sh
+  - install-nix.sh

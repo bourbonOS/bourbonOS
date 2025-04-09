@@ -1,0 +1,10 @@
+[copr:copr.fedorainfracloud.org:chronos:main]
+name=bourbonOS - main
+baseurl=https://download.copr.fedorainfracloud.org/results/chronos/main/epel-10-$basearch/
+type=rpm-md
+skip_if_unavailable=True
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/chronos/main/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+enabled_metadata=1

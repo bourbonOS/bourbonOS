@@ -1,0 +1,11 @@
+[Unit]
+Description=Give users access to /nix
+After=nix.mount
+BindsTo=nix.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/.internals-ostools/rw-access.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -7,7 +7,7 @@ else
     echo "Checking if $1 is a directory...."
     if [ -d "$1" ]; then
         echo "Enrolling directory $1"
-        echo "$1" >> /etc/pesticide/pesticide.conf
+        echo "$1" >> /etc/pesticide.d/pesticide.conf
     else
         echo "$1 is not a directory"
         exit 1

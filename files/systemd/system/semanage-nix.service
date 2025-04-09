@@ -1,12 +1,12 @@
 [Unit]
 Description=Set selinux rules for nix
-After=nix.mount etc.mount
+After=nix.mount var.mount
 BindsTo=nix.mount
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash /etc/containerconf/shell.d/semanage.sh
-ExecStartPost=/bin/systemctl disable semanage-nix.service
+ExecStart=/bin/bash -c "for i in '/nix/store/[^/]+/etc(/.*)?' '/nix/store/[^/]+/lib(/.*)?' '/nix/store/[^/]+/lib/systemd/system(/.*)?' '/nix/store/[^/]+/man(/.*)?' '/nix/store/[^/]+/s?bin(/.*)?' '/nix/store/[^/]+/share(/.*)?' '/nix/var/nix/daemon-socket(/.*)?' '/nix/var/nix/profiles(/per-user/[^/]+)?/[^/]+'; do semanage fcontext -a -t etc_t "$i"; semanage fcontext -a -t lib_t "$i"; semanage fcontext -a -t systemd_unit_file_t "$i"; semanage fcontext -a -t man_t "$i"; semanage fcontext -a -t bin_t "$i"; semanage fcontext -a -t usr_t "$i"; semanage fcontext -a -t var_run_t "$i"; done"
+ExecStartPost=/bin/systemctl disable --now semanage-nix.service
 
 [Install]
 WantedBy=multi-user.target

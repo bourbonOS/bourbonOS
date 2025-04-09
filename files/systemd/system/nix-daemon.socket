@@ -1,10 +1,11 @@
 [Unit]
 Description=Nix Daemon Socket
+DefaultDependencies=no
 Before=multi-user.target
 RequiresMountsFor=/nix/store
 ConditionPathIsReadWrite=/nix/var/nix/daemon-socket
-BindsTo=nix.mount
 After=nix.mount
+BindsTo=nix.mount
 
 [Socket]
 ListenStream=/nix/var/nix/daemon-socket/socket

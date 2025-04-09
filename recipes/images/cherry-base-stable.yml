@@ -1,0 +1,13 @@
+---
+name: stem-bourbon-stable
+description: Fedora bootc hinging on a bash script. BASE-STABLE edition.
+base-image: quay.io/fedora/fedora-bootc
+image-version: 41
+
+modules:
+  - from-file: ingredients/stable/stable-scripts.yml
+  - from-file: ingredients/stable/stable-pkgs.yml
+  - from-file: ingredients/common/common-files.yml
+  - from-file: ingredients/stable/stable-osrelease.yml
+  - from-file: ingredients/common/common-services.yml
+  - type: signing

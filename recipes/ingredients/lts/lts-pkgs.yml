@@ -1,0 +1,22 @@
+type: dnf4
+source: local
+repos:
+  files:
+    - bourbon-os-lts.repo
+install:
+  packages:
+    - atuin
+    - util-linux
+    - topgrade
+    - distrobox
+    - firefox
+    - rsync
+    - iwlwifi-mvm-firmware
+    - iwlwifi-dvm-firmware
+    - iwlegacy-firmware
+remove:
+  packages:
+    - toolbox
+    - sudo
+    - sudo-python-plugin
+    - ptyxis

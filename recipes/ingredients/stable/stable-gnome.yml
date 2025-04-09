@@ -1,0 +1,12 @@
+type: dnf
+source: local
+group-install:
+  packages:
+    - gnome-desktop
+install:
+  packages:
+    - nautilus
+    - gnome-software
+remove:
+  packages:
+    - gnome-system-monitor

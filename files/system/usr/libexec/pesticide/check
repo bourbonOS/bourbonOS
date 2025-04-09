@@ -1,49 +1,89 @@
 #!/bin/bash
 
-current_deployment=$(ostree admin status | grep '⟳' | head -n 1)
-previous_deployment=$(ostree admin status | grep '⟳' | tail -n 1)
-
 hash_dirs() {
-    while IFS= read -r line; do
-        [[ "$line" =~ ^#.*$ ]] && continue
-        find "$line" -type f -print0 | sort -z | while IFS= read -r -d '' file; do
-            sha256sum "$file"
-        done | sha256sum
-    done < "$1"
+    local hashfile="$1"
+
+    if [[ ! -f "$hashfile" ]]; then
+        echo "Creating hashfile $hashfile"
+        touch "$hashfile"
+        echo "Created hashfile $hashfile"
+    else
+        while IFS= read -r line; do
+            [[ "$line" =~ ^#.*$ ]] && continue
+            find "$line" -type f -print0 | sort -z | while IFS= read -r -d '' file; do
+                sha256sum "$file"
+            done | sha256sum
+        done < "$hashfile"
+    fi
 }
 
-if [ ! -f "/etc/pesticide/pesticide.conf" ]; then
-    echo "Configuration file does not exist."
-    exit 1
-elif [ "$current_deployment" != "$previous_deployment" ]; then
-    echo "An update has been applied. Regenerating hashes..."
-    if [ -f "/etc/pesticide.d/dirs.hash" ]; then
-        rm /etc/pesticide.d/dirs.hash
-    fi
-    hash_dirs /etc/pesticide.d/dirs.hash
-    echo "STATUS=OK" > /etc/pesticide.d/status
-    echo "Hashes regenerated."
-elif [ ! -f "/etc/pesticide.d/setup_is_done.lock" ]; then
-    echo "First run detected, creating hashes..."
-    hash_dirs /etc/pesticide.d/dirs.hash
-    touch /etc/pesticide.d/setup_is_done.lock
-    exit 0
-elif [ -f "/etc/pesticide.d/setup_is_done.lock" ]; then
-    echo "Checking hashes..."
-    hash_dirs /tmp/hash.tmp
-    diff /tmp/hash.tmp /etc/pesticide.d/dirs.hash
-    if [ $? -eq 0 ]; then
-        echo "STATUS=OK"
-        echo "STATUS=OK" > /etc/pesticide.d/status
-        rm /tmp/hash.tmp
-        exit 0
+deployment_status() {
+    local deployment_hash="/etc/pesticide.d/deployment.hash"
+
+    if [[ ! -f "$deployment_hash" ]]; then
+        mkdir -p "$(dirname "$deployment_hash")"
+        touch "$deployment_hash"
+        bootc status | sha256sum > "$deployment_hash"
     else
-        echo "STATUS=TAINTED"
-        echo "STATUS=TAINTED" > /etc/pesticide.d/status
-        rm /tmp/hash.tmp
+        local current_status
+        current_status=$(bootc status | sha256sum)
+        local saved_status
+        saved_status=$(cat "$deployment_hash")
+
+        if [[ "$current_status" != "$saved_status" ]]; then
+            echo "1"
+        else
+            echo "0"
+        fi
+    fi
+}
+
+main() {
+    local config_file="/etc/pesticide.d/pesticide.conf"
+    local dirs_hash="/etc/pesticide.d/dirs.hash"
+    local status_file="/etc/pesticide.d/status"
+    local setup_lock="/etc/pesticide.d/setup_is_done.lock"
+    local temp_hash="/tmp/hash.tmp"
+
+    if [[ ! -f "$config_file" ]]; then
+        echo "Configuration file does not exist."
         exit 1
     fi
-else
+
+    if [[ "$(deployment_status)" != "0" ]]; then
+        echo "An update has been applied. Regenerating hashes..."
+        [[ -f "$dirs_hash" ]] && rm "$dirs_hash"
+        hash_dirs "$dirs_hash"
+        echo "STATUS=OK" > "$status_file"
+        echo "Hashes regenerated."
+        exit 0
+    fi
+
+    if [[ ! -f "$setup_lock" ]]; then
+        echo "First run detected, creating hashes..."
+        hash_dirs "$dirs_hash"
+        touch "$setup_lock"
+        exit 0
+    fi
+
+    if [[ -f "$setup_lock" ]]; then
+        echo "Checking hashes..."
+        hash_dirs "$temp_hash"
+        if diff "$temp_hash" "$dirs_hash" > /dev/null; then
+            echo "STATUS=OK"
+            echo "STATUS=OK" > "$status_file"
+            rm "$temp_hash"
+            exit 0
+        else
+            echo "STATUS=TAINTED"
+            echo "STATUS=TAINTED" > "$status_file"
+            rm "$temp_hash"
+            exit 1
+        fi
+    fi
+
     echo "Unknown error."
     exit 1
-fi
+}
+
+main "$@"

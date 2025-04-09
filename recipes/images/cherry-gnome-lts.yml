@@ -1,0 +1,15 @@
+---
+name: stem-lambert-lts
+description: CentOS bootc hinging on a bash script. GNOME-LTS edition.
+base-image: quay.io/centos-bootc/centos-bootc
+image-version: stream10
+
+modules:
+  - from-file: ingredients/lts/lts-scripts.yml
+  - from-file: ingredients/lts/lts-pkgs.yml
+  - from-file: ingredients/lts/lts-gnome.yml
+  - from-file: ingredients/common/common-flatpaks.yml
+  - from-file: ingredients/common/common-files.yml
+  - from-file: ingredients/lts/lts-osrelease.yml
+  - from-file: ingredients/common/common-services.yml
+  - type: signing

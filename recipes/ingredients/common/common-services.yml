@@ -1,0 +1,9 @@
+type: systemd
+system:
+  enabled:
+    - pesticide.service
+    - nix-daemon.socket
+    - semanage-nix.service
+    - nix-dir-move.service
+    - nix-user-rw.service
+    - homefs-setup.service

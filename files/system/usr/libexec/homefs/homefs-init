@@ -1,0 +1,56 @@
+#!/bin/bash
+
+IMAGE_PATH="/tmp/homefs.img"
+MOUNT_POINT="/mnt/homefs-init"
+MAX_SIZE=$(df -h /var/home | awk 'NR==2 {print $2}')
+
+echo "creating mount point: $MOUNT_POINT"
+mkdir -p "$MOUNT_POINT"
+
+echo "creating image file: $IMAGE_PATH (${MAX_SIZE}GB)"
+truncate -s "${MAX_SIZE}" "$IMAGE_PATH"
+
+echo "formatting the image file ($IMAGE_PATH) with ext4..."
+mkfs.ext4 -F "$IMAGE_PATH"
+
+echo "mounting the image file ($IMAGE_PATH) to $MOUNT_POINT..."
+mount -o loop "$IMAGE_PATH" "$MOUNT_POINT"
+if [ $? -ne 0 ]; then
+    echo "error: failed to mount the image file."
+    rmdir -p "$MOUNT_POINT"
+    exit 1
+fi
+
+echo "copying contents of /var/home to $MOUNT_POINT..."
+rsync -avxX "/var/home/" "$MOUNT_POINT/"
+if [ $? -ne 0 ]; then
+    echo "warning: there were errors during the copy process."
+fi
+
+echo "unmounting $MOUNT_POINT..."
+umount "$MOUNT_POINT"
+if [ $? -ne 0 ]; then
+    echo "error: failed to unmount $MOUNT_POINT."
+    exit 1
+fi
+
+echo "removing temporary mount point $MOUNT_POINT..."
+rmdir -p "$MOUNT_POINT"
+
+echo "creating target directory for the image: /var/usrlocal/homefs"
+mkdir -p /var/usrlocal/homefs
+
+echo "moving homefs image to /var/usrlocal/homefs..."
+mv "/tmp/homefs.img" "/var/usrlocal/homefs"
+
+echo "mounting..."
+rm -rf /var/home/*
+mount -o loop -t ext4 /var/usrlocal/homefs/homefs.img /var/home/
+rm -rf /var/home/lost+found/
+for USER_DIR in /var/home/*; do
+    if [ -d "$USER_DIR" ]; then
+        USERNAME=$(basename "$USER_DIR")
+        chown $USERNAME:$USERNAME $USER_DIR
+        chmod 700 $USER_DIR
+    fi
+done

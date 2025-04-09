@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# set variables
 CONTAINER_CONFIG_DIR="/etc/containerconf"
 USER_CONTAINER_CONFIG_DIR="$CONTAINER_CONFIG_DIR/$USER"
 CONTAINER_LIST_FILE="$CONTAINER_CONFIG_DIR/configs.d/.cherry/list.txt"
@@ -7,46 +8,50 @@ CONTAINER_OVERRIDE_CONFIG="$HOME/.config/containerconf.d/override.conf"
 FILENAME_TMP=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 35 ; echo '')
 PS3="> "
 
+# set functions
 help() {
   cat <<EOF 
 Usage: cherry <subcommand> [option]
 
 Subcommands:
-  stem                        baseOS commands
-  branch                      containerOS commands
-  pesticide                   FSguard commands
-  version                     show program version
-  help                        show this dialogue
+  baseos                        baseOS commands
+  containeros                   containerOS commands
+  fsguard                       FSguard commands
+  version                       show program version
+  help                          show this dialogue
 EOF
 }
 
-os-help() {
+stem-help() {
   cat <<EOF
-Usage: cherry stem [option]
+Usage: cherry baseos [option]
 
 Options:
-  roots                       run a command on the host system
-  grow                        upgrade the host system and related utils
-  status                      show the status of the host system
-  help                        show this dialogue
+  exec                          run a command on the host system
+  upgrade                       upgrade the host system and related utils
+  status                        show the status of the host system
+  help                          show this dialogue
 EOF
 }
 
-container-help() {
+branch-help() {
   cat <<EOF
-Usage: cherry branch [option]
+Usage: cherry containeros [option]
 
 Options:
-  grow                        create a new container
-  snap                        remove an existing container
-  jump <container_name>       switch to a different container
-  help                        show this dialogue
+  new                           create a new container
+  rm <container_name>           remove an existing container
+  save <container_name>         save the specified container to an image
+  load <image_path>             load a container from an image
+  switch <container_name>       switch to a different container
+  list                          list all containers
+  help                          show this dialogue
 EOF
 }
 
 pesticide-help() {
   cat <<EOF
-Usage: cherry pesticide [option]
+Usage: cherry fsguard [option]
 
 Options:
   status                      show the status of enrolled directories
@@ -56,199 +61,216 @@ Options:
 EOF
 }
 
-version() {
-  echo "cherry v2.0.0"
-}
-
 status() {
   cat <<EOF
 bourbonOS $(cat /etc/bourbonOS-version)
 pesticide: $(/usr/libexec/pesticide/status) $(/usr/libexec/pesticide/version)
 =======================
 host: $(hostname)
-kargs: $(cat /proc/cmdline)
+kargs: $(cat /proc/cmdline | sed -E 's/(ostree=)[^ ]+/\1.../' | sed -E 's/(BOOT_IMAGE=)[^ ]+/\1.../')
 kernver: $(uname -r)
 =======================
-current container: $(cat "$CONTAINER_OVERRIDE_CONFIG")
 containers:
 $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$')
 =======================
 ostree status:
-$(bootc status)
+$(pkexec bootc status --booted)
 EOF
 }
 
-new_container() {
-  echo "Do you want to:"
-  select container_new_choice in "Choose from a list of images" "Specify your own (advanced)"; do
-    case $REPLY in
-      1|2) break ;;
-      *) echo "Invalid choice. Please select 1 or 2." ;;
-    esac
-  done
-  case "$container_new_choice" in
-    1)
-      echo "Select an image from the list:"
-      select image in $(cat "$CONTAINER_LIST_FILE"); do
-        if [[ -n "$image" ]]; then
-          distrobox-assemble create --file /etc/containerconf/configs.d/$image.ini
-          echo "Done! You can switch to the container using 'cherry branch switch'."
-          break
-        else
-          echo "Invalid selection."
-          exit 1
-        fi
-      done
-      ;;
-    2)
-      read -p "Container URL/alias: " manual_container_url
-      read -p "Container name: " manual_container_name
-      echo "An editor will open to allow you to specify additional options."
-      echo "If you do not know how to specify additional options in the editor,"
-      echo "Please type the word help and press enter."
-      echo "When you're done looking at the help file, press q to exit."
-      echo "Then, reselect 'Specify your own (advanced)' to continue."
-      echo "If you don't need help, just press enter."
-      read -p container_help_var "> "
-      if [[ "$container_help_var" == "help" ]]; then
-        less /etc/containerconf/configs.d/.cherry/editor-syntax.txt
-        new_container
-      else
-        cp /etc/containerconf/configs.d/.ini-template /tmp/$FILENAME_TMP.ini
-        sed -i "s/<name>/$manual_container_name/g" /tmp/$FILENAME_TMP.ini
-        sed -i "s/<url>/$manual_container_url/g" /tmp/$FILENAME_TMP.ini
-        nano /tmp/$FILENAME_TMP.ini
-        distrobox-assemble create --file /tmp/$FILENAME_TMP.ini
-        rm /tmp/$FILENAME_TMP.ini
-      fi
-      echo "Done! You can switch to the container using 'cherry branch switch'."
-      ;;
-    *)
-      echo "Invalid choice."
-      exit 1
-      ;;
-  esac
+version() {
+  echo "cherry v2.3.0"
 }
 
-remove_container() {
-  if [[ -z $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$') ]]; then
-    echo "No containers to remove."
-    exit 1
-  else
-    echo "Select a container by its number to remove it."
-    select container in $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$'); do
-      if [[ -n "$container" ]]; then
-        distrobox-rm $container
-        break
-      else
-        echo "Invalid selection."
-        exit 1
-      fi
-    done
-  fi
-}
-
-switch_container() {
-  if [[ -z $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$') ]]; then
-    echo "No containers to switch to."
-    exit 1
-  else
-    echo "Select a container by its number to switch to it."
-    select container in $(distrobox-list | awk '{print $3}' | grep -v '^NAME$' | sed 's/^cherry-cli$/default container/'); do
-      if [[ -n "$container" ]]; then
-        exec distrobox-enter $container -- bash
-      else
-        echo "Invalid selection."
-        exit 1
-      fi
-    done
-  fi
-}
-
-os_exec() {
-  "$@"
-}
-
-os_upgrade() {
-  clear
-  topgrade
-}
-
+# main function
 case "$1" in
-  stem)
-    shift
-    case "$1" in
-      roots)
+    baseos)
         shift
-        os_exec "$@"
+        case "$1" in
+            exec)
+                shift
+                $@
+                ;;
+            upgrade)
+                clear
+                echo "OS Upgrade Starting..."
+                echo "Upgrade logs also accessible at /tmp/topgrade.log-$FILENAME_TMP"
+                topgrade | tee /tmp/topgrade.log-$FILENAME_TMP
+                if [[ $? -eq 0 ]]; then
+                    echo "OS Upgrade Complete!"
+                else
+                    echo "OS Upgrade Failed! Check the logs at /tmp/topgrade.log-$FILENAME_TMP for full detail."
+                fi
+                ;;
+            status)
+                status
+                ;;
+            help)
+                stem-help
+                ;;
+            *)
+                stem-help
+                exit 1
+                ;;
+        esac
         ;;
-      grow)
-        os_upgrade
+    containeros)
+        shift
+        case "$1" in
+            "new")
+                echo "Do you want to:"
+                select container in "Choose from a list of images" "Specify your own (advanced)"; do
+                    if [[ -n $container ]]; then
+                        case "$container" in
+                            "Choose from a list of images")
+                                echo "Select an image from the list:"
+                                select image in $(cat /etc/containerconf/.cherry/list.txt); do
+                                    if [[ -n $image ]]; then
+                                        distrobox-assemble create --file "/etc/containerconf/$image.ini"
+                                        echo "Done! You can switch to the container using 'cherry branch jump'."
+                                        exit 0
+                                    else
+                                        echo "Invalid selection."
+                                        exit 1
+                                    fi
+                                done
+                                ;;
+                            "Specify your own (advanced)")
+                                read -p "Container URL/alias: " manual_container_url
+                                read -p "Container name: " manual_container_name
+                                echo "An editor will open to allow you to specify additional options."
+                                echo "If you do not know how to specify additional options in the editor,"
+                                echo "Please type the word help and press enter."
+                                echo "When you're done looking at the help file, press q to exit."
+                                echo "Then, reselect 'Specify your own (advanced)' to continue."
+                                echo "If you don't need help, just press enter."
+                                read -p "> " container_help_var
+                                if [[ "$container_help_var" == "help" ]]; then
+                                    less /etc/containerconf/.cherry/editor-syntax.txt
+                                    new_container
+                                else
+                                    cp /etc/containerconf/.ini-template "/tmp/$FILENAME_TMP.ini"
+                                    sed -i "s/<name>/$manual_container_name/g" "/tmp/$FILENAME_TMP.ini"
+                                    sed -i "s/<url>/$manual_container_url/g" "/tmp/$FILENAME_TMP.ini"
+                                    nano "/tmp/$FILENAME_TMP.ini"
+                                    distrobox-assemble create --file "/tmp/$FILENAME_TMP.ini"
+                                    rm "/tmp/$FILENAME_TMP.ini"
+                                fi
+                                echo "Done! You can switch to the container using 'cherry branch jump'."
+                                exit 0
+                                ;;
+                            *)
+                                echo "Invalid choice."
+                                exit 1
+                                ;;
+                        esac
+                    fi
+                done
+                ;;
+            "rm")
+                if [[ -z $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$') ]]; then
+                    echo "No containers to remove."
+                    exit 1
+                else
+                    echo "Select a container by its number to remove it."
+                    select container in $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$'); do
+                        if [[ -n $container ]]; then
+                            distrobox-rm "$container"
+                            echo "Removed $container."
+                            exit 0
+                        else
+                            echo "Invalid selection."
+                            exit 1
+                        fi
+                    done
+                fi
+                ;;
+            "save")
+                if [[ -z $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$') ]]; then
+                    echo "No containers to save."
+                    exit 1
+                else
+                    echo "Select a container by its number to save it to an image."
+                    select container in $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$'); do
+                        if [[ -n $container ]]; then
+                            podman save "$container" "$HOME/$container.tar"
+                            echo "Container image saved at $HOME/$container.tar"
+                            exit 0
+                        else
+                            echo "Invalid selection."
+                            exit 1
+                        fi
+                    done
+                fi
+                ;;
+            "load")
+                shift
+                if [[ ! -f "$1" ]]; then
+                    echo "Error: Image path not found."
+                    exit 1
+                fi
+                podman load "$1"
+                echo "Container loaded from $1. You can switch to it using 'cherry branch jump'."
+                ;;
+            "switch")
+                if [[ -z $(distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$') ]]; then
+                    echo "No containers to switch to."
+                    exit 1
+                else
+                    echo "Select a container by its number to switch to it."
+                    select container in $(distrobox-list | awk '{print $3}' | grep -v '^NAME$' | sed 's/^cherry-cli$/default container/'); do
+                        if [[ -n $container ]]; then
+                            exec distrobox-enter "$container"
+                        else
+                            echo "Invalid selection."
+                            exit 1
+                        fi
+                    done
+                fi
+                ;;
+            "list")
+                distrobox-list | awk '{print $3}' | grep -v -e '^NAME$' -e '^cherry-cli$'
+                ;;
+            "help")
+                branch-help
+                ;;
+            *)
+                echo "Error: Invalid option."
+                branch-help
+                exit 1
+                ;;
+        esac
         ;;
-      status)
-        status
+    fsguard)
+        shift
+        case "$1" in
+            status)
+                /usr/libexec/pesticide/status
+                ;;
+            check)
+                /usr/libexec/pesticide/check
+                ;;
+            apply)
+                shift
+                /usr/libexec/pesticide/enroll "$@"
+                ;;
+            help)
+                pesticide-help
+                ;;
+            *)
+                pesticide-help
+                exit 1
+                ;;
+        esac
         ;;
-      help)
-        os-help
+    version)
+        version
         ;;
-      *)
-        os-help
+    help)
+        help
+        ;;
+    *)
+        help
         exit 1
         ;;
-    esac
-    ;;
-  branch)
-    shift
-    case "$1" in
-      grow)
-        new_container
-        ;;
-      snap)
-        shift
-        remove_container "$@"
-        ;;
-      jump)
-        switch_container
-        ;;
-      help)
-        container-help
-        ;;
-      *)
-        container-help
-        exit 1
-        ;;
-    esac
-    ;;
-  pesticide)
-    shift
-    case "$1" in
-      status)
-        /usr/libexec/pesticide/status
-        ;;
-      check)
-        /usr/libexec/pesticide/check
-        ;;
-      apply)
-        shift
-        /usr/libexec/pesticide/enroll "$@"
-        ;;
-      help)
-        pesticide-help
-        ;;
-      *)
-        pesticide-help
-        exit 1
-        ;;
-    esac
-    ;;
-  version)
-    version
-    ;;
-  help)
-    help
-    ;;
-  *)
-    help
-    exit 1
-    ;;
 esac

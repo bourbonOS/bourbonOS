@@ -1,9 +1,0 @@
-[branch-<name>]
-additional_packages="git vim tmux"
-image=<url>
-init=false
-nvidia=false
-pull=true
-root=false
-replace=true
-start_now=false

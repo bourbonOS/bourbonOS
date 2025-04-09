@@ -5,11 +5,11 @@ RequiresMountsFor=/nix/store
 RequiresMountsFor=/nix/var
 RequiresMountsFor=/nix/var/nix/db
 ConditionPathIsReadWrite=/nix/var/nix/daemon-socket
-BindsTo=nix.mount
 After=nix.mount
+BindsTo=nix.mount
 
 [Service]
-ExecStart=/bin/bash /etc/containerconf/shell.d/start-nix-daemon.sh
+ExecStart=$(find /nix/store -name nix-daemon | grep '/bin/nix-daemon$' | head -n 1) nix-daemon --daemon
 KillMode=process
 LimitNOFILE=1048576
 TasksMax=1048576

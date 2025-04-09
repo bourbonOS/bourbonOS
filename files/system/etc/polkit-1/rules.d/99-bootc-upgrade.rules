@@ -1,0 +1,8 @@
+polkit.addRule(function(action, subject) {
+    if (action.id === "org.freedesktop.policykit.exec" && 
+        action.lookup("command") === "/usr/bin/bootc" && 
+        action.lookup("args") && 
+        (action.lookup("args")[0] === "status" || action.lookup("args")[0] === "upgrade")) {
+        return polkit.Result.YES;
+    }
+});

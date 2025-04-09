@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# set help text
+help () {
+    cat <<EOF
+usage: synergy <subcommand> [pkg]
+
+subcommands:
+  install [pkg]                 install a package
+  remove [pkg]                  remove a package
+  list                          list installed packages
+  update                        update repositories
+  upgrade                       upgrade all packages
+  help                          show this dialogue
+EOF
+}
+
+# main function
+case $1 in
+    install)
+        if [ -z "$2" ]; then
+            echo "usage: $0 install <pkg>"
+            help
+            exit 1
+        fi
+        echo "installing $2..."
+        nix-env -iA unstable."$2"
+	       echo "installed $2!"
+        ;;
+    remove)
+        if [ -z "$2" ]; then
+            echo "usage: $0 remove <pkg>"
+            help
+            exit 1
+        fi
+        echo "removing $2..."
+        nix-env -e "$2"
+        nix-collect-garbage
+       	echo "removed $2!"
+        ;;
+    list)
+        echo "packages:"
+        nix-env -q
+        ;;
+    update)
+        echo "updating nix channels..."
+        nix-channel --update
+        ;;
+    upgrade)
+        echo "upgrading packages..."
+        nix-env --upgrade
+        ;;
+    help)
+        help
+        ;;
+    *)
+        help
+        exit 1
+        ;;
+esac

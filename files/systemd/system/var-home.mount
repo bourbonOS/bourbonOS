@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount homefs
+Before=local-fs.target
+After=var.mount
+BindsTo=var.mount
+ConditionPathExists=/var/usrlocal/homefs/homefs.img
+
+[Mount]
+What=/var/usrlocal/homefs/homefs.img
+Where=/var/home
+Type=ext4
+Options=loop
