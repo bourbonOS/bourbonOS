@@ -45,7 +45,7 @@ If you want the **Stable** channel, append `-stable` to the command.
 
 If you want the **LTS** (long-term support) channel, append `-lts` to the command.
 
-If you want the DEV****EL (development) channel, choose one of the previous channels and append `-devel`. (ex. the suffix for LTS + devel is `-lts-devel`)
+If you want the **DEVEL** (development) channel, choose one of the previous channels and append `-devel`. (ex. the suffix for LTS + devel is `-lts-devel`)
 
 If you can't decide, we provide a command to switch channels, the command being `cherry baseos channel-switch`. :> 
 
