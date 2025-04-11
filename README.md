@@ -39,8 +39,8 @@ Images are built daily to make sure we are up-to-date (doesn't mean you'll updat
 
 # How do I switch?
 Open your terminal and run the following, respectively:
-- **bourbonOS GNOME**: `rpm-ostree rebase ostree-unverified-registry:ghcr.io/bourbonOS/stem-bourbon`
-- **bourbonOS BASE**: `rpm-ostree rebase ostree-unverified-registry:ghcr.io/bourbonOS/stem-lambert`
+- **bourbonOS GNOME**: `rpm-ostree rebase ostree-unverified-registry:ghcr.io/bourbonOS/stem-lambert`
+- **bourbonOS BASE**: `rpm-ostree rebase ostree-unverified-registry:ghcr.io/bourbonOS/stem-bourbon`
 If you want the **Stable** channel, append `-stable` to the command.
 
 If you want the **LTS** (long-term support) channel, append `-lts` to the command.
